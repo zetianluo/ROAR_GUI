@@ -10,9 +10,7 @@ from pathlib import Path
 
 
 class SimConfigWindow(BaseWindow):
-    def __init__(
-        self, app: QtWidgets.QApplication, sim_json_config_file_path: Path, **kwargs
-    ):
+    def __init__(self, app: QtWidgets.QApplication, sim_json_config_file_path: Path, **kwargs):
         super().__init__(app, Ui_SimulationConfigWindow, **kwargs)
         self.setting_list = []
         self.setting_dict = dict()
@@ -21,39 +19,59 @@ class SimConfigWindow(BaseWindow):
         self.json_config_file_path: Path = sim_json_config_file_path
         self.model_info: Dict[str, PydanticModelEntry] = self.fill_config_list()
 
-        # self.text_change()
-        #####
-        # self.currentTextChanged.connect(self.onCurrentTextChanged)
+        # =====================================================================================================
+        # create save button and add to menu
+
+        self.ui.actionSave = QtWidgets.QAction(self)
+        self.ui.actionSave.setObjectName("actionSave")
+        self.ui.actionSave.setText(QtCore.QCoreApplication.translate("SimulationConfigWindow", "Save"))
+        self.ui.menuFile.addAction(self.ui.actionSave)
+        self.ui.actionSave.triggered.connect(self.save_config)
+
+        # =====================================================================================================
+
+    #  self.menubar.addAction(self.menuFile.menuAction())
+    # self.text_change()
+    #####
+    # self.currentTextChanged.connect(self.onCurrentTextChanged)
 
     # def onCurrentTextChanged(self, text):
     #     print("\n text changed \n")
 
     def fill_config_list(self) -> Dict[str, Any]:
         model_info: Dict[str, Any] = dict()
-        for key_name, entry in self.simulation_config.schema()["properties"].items():
+        for key_name, entry in self.simulation_config.schema()['properties'].items():
             if "type" not in entry:
                 continue
-            model_info[key_name] = entry["title"]  # PydanticModelEntry.parse_obj(entry)
+            model_info[key_name] = entry['title']  # PydanticModelEntry.parse_obj(entry)
             # pprint(entry)
 
-        json_dict: dict = json.load(self.json_config_file_path.open("r"))
+        json_dict: dict = json.load(self.json_config_file_path.open('r'))
         for key_name, entry in json_dict.items():
             pass
             model_info[key_name] = entry
-            # TODO update model_info
+            # TODO update model_info, completed
             # print(key_name, entry)
         model_values = self.simulation_config.dict()
         # print("len:  ",len(model_info.items()))
         ##print(self.test_input_list)
         # print(self.setting_dict)
 
-        for name, entry in model_info.items():
+        for name, entry in model_values.items():
             # TODO do not populate if it is not of type [int, float, string, bool]
-            curr_value = model_values[name] if name in model_values else entry.default
-            self.add_entry_to_settings_gui(name=name, value=curr_value)
+            if name in model_info.keys():
+                entry = model_info[name]
+            # type check -> present if type in ['int','float','string','bool']
+            try:
+                if isinstance(eval(str(entry)), dict):
+                    continue
+            except:
+                pass
+            self.add_entry_to_settings_gui(name=name,
+                                           value=entry)
             # self.test_input_list.append([name,str(curr_value)])
 
-            self.setting_dict[name] = curr_value
+            self.setting_dict[name] = entry
         # self.logger.debug()
         return model_info
 
@@ -88,18 +106,15 @@ class SimConfigWindow(BaseWindow):
 
     def pushButton_confirm(self):
         self.auto_wire_window(ControlPanelWindow)
+        # self.save_config()
+
+    def save_config(self):
+        """
+        save config to file
+        """
+
         sim_config_json = {}
-        #     "a" : "1",
-        #     "b" : "2",
-        #     "c" : "3"
-        # }
-        # print("start print\n")
-        # for key_name, entry in self.simulation_config.schema()['properties'].items():
-        # self.fill_config_list()
-        # for key_name, entry in self.fill_config_list():
-        #    print(key_name," : ",entry)
-        # print(self.input_list)
-        ##test_str = ""
+
         for widget in self.setting_list:
             # if isinstance(widget, QtWidgets.QLineEdit):
             # print(widget.objectName(),":", widget.text())
@@ -114,31 +129,19 @@ class SimConfigWindow(BaseWindow):
             else:
                 sim_config_json[widget.objectName()] = widget.text()
 
-            ##test_str = test_str + "\n" + str(widget.objectName()) + " : " + str(widget.text())
+        json_dict: dict = json.load(self.json_config_file_path.open('r'))
+        json_object = sim_config_json
+        for key, entry in json_object.items():
+            try:
+                json_dict[key] = eval(entry)
+            except:
+                json_dict[key] = entry
 
-        # print("\ntest_str= \n",test_str,"\n")
-        # print("\njson= \n", sim_config_json, "\n")
-        # print("\n end print\n")
-        sim_config_json["weather"] = {
-            "cloudiness": 10,
-            "precipitation": 0,
-            "precipitation_deposits": 0,
-            "wind_intensity": 0,
-            "sun_azimuth_angle": 90,
-            "sun_altitude_angle": 90,
-            "fog_density": 0,
-            "fog_distance": 0,
-            "wetness": 0,
-        }
-        sim_config_json["color"] = {"r": 255, "g": 0, "b": 0, "a": 255}
-        json_object = json.dumps(sim_config_json, indent=2)
         # current C:\Users\Zetian\Desktop\project\ROAR\ROAR_Desktop\ROAR_GUI
         # need    C:\Users\Zetian\Desktop\project\ROAR\ROAR_Sim\configurations
         # pathlib
-        with open(
-            "../../ROAR_Sim/configurations/configuration_test.json", "w"
-        ) as outfile:
-            outfile.write(json_object)
+        with open("../../ROAR_Sim/configurations/configuration.json", "w") as outfile:
+            outfile.write(json.dumps(json_dict, indent = 2))
 
     def auto_wire_window(self, target_window):
         target_app = target_window(self.app)
