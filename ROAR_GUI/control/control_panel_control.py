@@ -5,12 +5,12 @@ from typing import Optional
 import cv2
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QImage, QPixmap
+from runner_sim import run
 
 cap = cv2.VideoCapture(0)
 
 
 # cap1 = cv2.VideoCapture(1)
-
 
 class ControlPanelWindow(BaseWindow):
     def __init__(self, app: QtWidgets.QApplication):
@@ -19,13 +19,22 @@ class ControlPanelWindow(BaseWindow):
         self.front_camera_image_label: Optional[QtWidgets.QLabel] = None
         self.rear_camera_image_label: Optional[QtWidgets.QLabel] = None
         self.init_ui()
-        self.front_camera_image_thread = Thread(self)
-        self.front_camera_image_thread.changePixmap.connect(self.set_front_camera_image)
+        #self.front_camera_image_thread = Thread(self)
+        #self.front_camera_image_thread.changePixmap.connect(self.set_front_camera_image)
+
+        self.ui.start_pushButton.clicked.connect(self.run_sim) # bind event listener
 
         # self.rear_camera_image_thread = Thread(self)
         # self.rear_camera_image_thread.changePixmap.connect(self.set_rear_camera_image)
 
-        self.start_poll_images()
+        #self.start_poll_images()
+
+    # use run_sim script to display carla simulator gui
+    def run_sim(self):
+        import os
+        os.chdir('../../') # change python path directory
+        run() # display gui
+        os.chdir('./') # recover python path
 
     def init_ui(self):
         self.front_camera_image_label = QtWidgets.QLabel(self)
@@ -39,6 +48,7 @@ class ControlPanelWindow(BaseWindow):
 
     def set_listener(self):
         super(ControlPanelWindow, self).set_listener()
+
 
     @pyqtSlot(QImage)
     def set_front_camera_image(self, image):
@@ -69,12 +79,9 @@ class Thread(QThread):
                 rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w, ch = rgbImage.shape
                 bytesPerLine = ch * w
-                convertToQtFormat = QImage(
-                    rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888
-                )
+                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
                 p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
                 self.changePixmap.emit(p)
-
 
 # class WorkerSignals(QtCore.QObject):
 #     """
